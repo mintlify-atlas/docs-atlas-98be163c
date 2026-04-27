@@ -1,0 +1,91 @@
+---
+title: "Set up debrid services in DirectPackageInstaller"
+description: "Configure AllDebrid, RealDebrid, or DebridLink API keys in DirectPackageInstaller to resolve premium file host links and download PKGs at full speed."
+---
+
+Debrid services act as premium link resolvers: you authenticate with a single subscription, and the service fetches files from supported third-party hosts on your behalf, returning a direct high-speed download URL. DirectPackageInstaller integrates with three debrid providers — AllDebrid, RealDebrid, and DebridLink — allowing you to install PKGs from a wide range of file hosts at full speed without managing individual host accounts. Debrid services are entirely optional; DPI works without them using direct links and other free hosts such as Google Drive, Mediafire, and PixelDrain.
+
+## AllDebrid
+
+AllDebrid supports a broad set of file hosts and is one of the two recommended options for the best download speeds.
+
+<Steps>
+  <Step title="Get an API key">
+    Log in to your AllDebrid account and visit [alldebrid.com/apikeys](https://alldebrid.com/apikeys/). Generate a new key and copy it.
+  </Step>
+  <Step title="Enter the key in DPI">
+    Open DirectPackageInstaller, go to **Options**, and paste your key into the **AllDebrid API Key** field.
+  </Step>
+  <Step title="Enable AllDebrid">
+    In the same **Options** panel, enable the **Use AllDebrid** toggle.
+  </Step>
+  <Step title="Install a package">
+    Paste any AllDebrid-compatible file host link into the **PKG URL** field and click **Load**. DPI will resolve the link through AllDebrid automatically.
+  </Step>
+</Steps>
+
+<Note>
+  DPI validates your AllDebrid API key and fetches the list of supported host regexes on first use. If the key is invalid or the account has lapsed, `IsValidUrl` returns `false` for all URLs and DPI falls back to the next configured service.
+</Note>
+
+## RealDebrid
+
+RealDebrid is the other top-tier recommendation and covers a similarly large set of file hosts.
+
+<Steps>
+  <Step title="Get an API token">
+    Log in to your RealDebrid account and visit [real-debrid.com/apitoken](https://real-debrid.com/apitoken). Copy the token shown on that page.
+  </Step>
+  <Step title="Enter the token in DPI">
+    Open DirectPackageInstaller, go to **Options**, and paste your token into the **RealDebrid API Key** field.
+  </Step>
+  <Step title="Enable RealDebrid">
+    Enable the **Use RealDebrid** toggle in **Options**.
+  </Step>
+  <Step title="Install a package">
+    Paste a supported file host link into the **PKG URL** field and click **Load**. DPI posts the URL to the RealDebrid unrestrict endpoint and uses the returned direct link to serve the PKG to your console.
+  </Step>
+</Steps>
+
+## DebridLink
+
+DebridLink is a solid alternative if AllDebrid or RealDebrid are unavailable in your region or do not support a specific host you need.
+
+<Steps>
+  <Step title="Get an API key">
+    Log in to your DebridLink account and visit [debrid-link.com/webapp/apikey](https://debrid-link.com/webapp/apikey). Copy the key displayed there.
+  </Step>
+  <Step title="Enter the key in DPI">
+    Open DirectPackageInstaller, go to **Options**, and paste your key into the **DebridLink API Key** field.
+  </Step>
+  <Step title="Enable DebridLink">
+    Enable the **Use DebridLink** toggle in **Options**.
+  </Step>
+  <Step title="Install a package">
+    Paste a supported link into the **PKG URL** field and click **Load**. DPI submits the URL to the DebridLink downloader API and resolves it to a direct download URL.
+  </Step>
+</Steps>
+
+## Service priority and selection
+
+DPI checks debrid services in a fixed order and uses the first one that recognises the URL. If you have multiple services configured, the priority is:
+
+1. **AllDebrid** — checked first
+2. **RealDebrid** — checked second
+3. **DebridLink** — checked third
+
+A service is skipped entirely if its `Use*` flag is `false` or its API key is empty or set to `null`. Only one service handles any given URL.
+
+<Info>
+  Each debrid service fetches its list of supported host regexes from its API on first use and caches the result for the session. A URL is matched against those regexes; if no regex matches, the service returns `false` and DPI moves on to the next one.
+</Info>
+
+## Choosing a service
+
+<Tip>
+  AllDebrid and RealDebrid offer the widest host support and consistently the fastest speeds. If you already have a subscription to one of them, use it. DebridLink is a good backup option. All three are significantly faster than free hosts for large PKG files.
+</Tip>
+
+## Using DPI without debrid services
+
+Debrid services are not required. If none are configured, DPI resolves links using its built-in free host plugins (Google Drive, Mediafire, PixelDrain, 1Fichier) or treats the URL as a raw direct link. For most users with a direct link or a Google Drive share, no debrid account is needed.

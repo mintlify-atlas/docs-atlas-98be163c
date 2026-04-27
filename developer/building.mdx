@@ -1,0 +1,110 @@
+---
+title: "Build DirectPackageInstaller from source"
+description: "Build DirectPackageInstaller from source with the .NET 8 SDK and Build.cmd on Windows, Linux, or macOS. Covers all platform targets and custom payload rebuilds."
+---
+
+DirectPackageInstaller is a .NET 8 multi-target application that can be compiled for Windows, Linux, macOS, and Android from a single repository. The `Build.cmd` script is a polyglot shell/batch file that works on both Windows and Unix-like hosts, handles per-platform publish steps, and deposits ready-to-distribute archives in a `Release/` directory.
+
+## Prerequisites
+
+- **.NET 8.x SDK** — required on all platforms. Verify with `dotnet --list-sdks`; the output must include a line starting with `8.`.
+- **zip / unzip** — used by the Unix path of `Build.cmd` to assemble archives.
+- **make + PS4 toolchain** — only required if you want to rebuild the C payload binary.
+
+<Info>
+  macOS builds are self-contained (the .NET 8 runtime is bundled). All other
+  platforms require the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime)
+  to be installed on the target machine.
+</Info>
+
+## Build steps
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/marcussacana/DirectPackageInstaller
+    cd DirectPackageInstaller
+    ```
+  </Step>
+  <Step title="Run Build.cmd">
+    The script is executable on both Windows and Unix. On Unix, mark it executable first if needed:
+
+    ```bash
+    chmod +x Build.cmd
+    ./Build.cmd
+    ```
+
+    On Windows, run it from a Developer Command Prompt or plain `cmd.exe`:
+
+    ```bat
+    Build.cmd
+    ```
+
+    The script cleans any previous output, restores NuGet packages, publishes every enabled target, and moves the resulting zips to the `Release/` directory.
+  </Step>
+  <Step title="Collect artifacts">
+    When the script finishes, `Release/` contains named zips for each platform and architecture (e.g., `Windows-X64.zip`, `Linux-ARM64.zip`, `OSX-ARM64-APP.zip`).
+  </Step>
+</Steps>
+
+<Tip>
+  You can build a subset of platforms by setting `BUILD_TARGETS` before running
+  the script on Unix:
+
+  ```bash
+  BUILD_TARGETS=linux,osx ./Build.cmd
+  ```
+
+  Accepted values are `win`, `linux`, `osx`, and `android`, separated by commas.
+</Tip>
+
+## Custom payloads
+
+The binary payload sent to the PS4 over GoldHEN's TCP socket is compiled from C sources in the `Payload/` directory. The prebuilt `payload.bin` is already committed to the repository; you only need to rebuild it when you modify the payload C source.
+
+<Steps>
+  <Step title="Install a PS4 toolchain">
+    A LLVM/Clang-based toolchain targeting the PS4 (e.g., OpenOrbis SDK) and GNU `make` must be available in `PATH`.
+  </Step>
+  <Step title="Build the payload">
+    ```bash
+    cd Payload
+    make
+    ```
+  </Step>
+  <Step title="Replace the embedded binary">
+    Copy the output over the existing binary:
+
+    ```bash
+    cp payload.bin ../DirectPackageInstaller/DirectPackageInstaller/payload/payload.bin
+    ```
+  </Step>
+</Steps>
+
+## GitHub Actions
+
+If you prefer not to configure a local toolchain, fork the repository on GitHub. The existing workflow files build and upload artifacts for every push. No extra configuration is required beyond accepting Android SDK licenses (handled automatically in CI).
+
+## Project structure
+
+```
+DirectPackageInstaller/
+├── DirectPackageInstaller/
+│   └── DirectPackageInstaller/          # Core library: Avalonia UI, file hosts, tasks, HTTP server
+├── DirectPackageInstaller.Desktop/      # Entry point — CLI bootstrap + Avalonia desktop startup
+├── DirectPackageInstaller.Android/      # Android target (API 26+)
+├── DirectPackageInstaller.iOS/          # iOS target (experimental)
+├── DirectPackageInstaller.Web/          # Web/WASM target
+├── DHCPServer/                          # Embedded DHCP server library
+├── LibOrbisPkg/                         # PS4 PKG parsing library (by maxton)
+├── HttpServerLite/                      # Embedded HTTP server (by jchristn)
+├── Payload/                             # C payload source (requires make + PS4 toolchain)
+└── Build.cmd                            # Polyglot Windows/Unix build script
+```
+
+<Note>
+  The `DirectPackageInstaller/DirectPackageInstaller/` subdirectory (the core
+  library) is the primary area of interest for contributors. It contains the
+  file host plugins, the local HTTP server, the installer task logic, and all
+  Avalonia UI views.
+</Note>

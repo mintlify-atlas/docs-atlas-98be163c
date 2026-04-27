@@ -1,0 +1,136 @@
+---
+title: "Install PKGs from an NFS server with DirectPackageInstaller"
+description: "Use an NFS server as a PKG source in DirectPackageInstaller. Supports two URL formats: with explicit export path or automatic export discovery."
+---
+
+DirectPackageInstaller can install PKG files directly from an NFS (Network File System) server. This is useful when you store your packages on a NAS, home server, or any machine that exports directories over NFS — you can point DPI at the share and install without re-uploading or copying files to another location first.
+
+## Supported URL formats
+
+DPI recognises two NFS URL formats. Which one you use depends on whether you know the exact export path configured on the server.
+
+### Format 1 — explicit export path
+
+```text
+nfs://YOUR_NFS_IP_OR_HOSTNAME/ExportedPath/FilePath/FileName.pkg
+```
+
+In this format the path segment immediately after the hostname matches an entry in the NFS server's exports configuration (the path you would see in `/etc/exports` on Linux, or in the haneWIN export list on Windows). DPI mounts that specific export and then looks for the file at the remaining sub-path within it.
+
+**Example:**
+
+```text
+nfs://192.168.1.50/export/games/Ratchet.pkg
+```
+
+Here `/export/games` is the exported directory and `Ratchet.pkg` is the file within it.
+
+### Format 2 — automatic export discovery
+
+```text
+nfs://YOUR_NFS_IP_OR_HOSTNAME/FilePath/FileName.pkg
+```
+
+In this format no specific export is identified. DPI queries the NFS server for all available exports and searches across them to locate the requested file path. This is more convenient if you do not know your export configuration, but it can be slower to resolve on the first access when the server has many exports.
+
+**Example:**
+
+```text
+nfs://192.168.1.50/games/Ratchet.pkg
+```
+
+<Tip>
+  Use Format 1 whenever you know your export path. It avoids the discovery scan and results in faster initial load times, especially on servers with many exports.
+</Tip>
+
+---
+
+## Setting up an NFS server
+
+<Tabs>
+  <Tab title="Windows">
+    DPI is **incompatible with winnfsd** due to a known bug in that implementation. Use **haneWIN NFS Server** instead.
+
+    <Warning>
+      Do not use [winnfsd](https://github.com/winnfsd/winnfsd) — it has a confirmed [bug (#88)](https://github.com/winnfsd/winnfsd/issues/88) that prevents DPI from mounting exports correctly.
+    </Warning>
+
+    1. Download and install [haneWIN NFS Server](https://www.hanewin.net/nfs-e.htm).
+    2. Open the haneWIN NFS Server configuration.
+    3. Add an export entry pointing to the directory that contains your PKG files (for example, `C:\Games\PKGs`).
+    4. Note the export path exactly as entered — you will use it in Format 1 URLs.
+    5. Start the NFS service.
+  </Tab>
+  <Tab title="Linux">
+    Edit `/etc/exports` and add an entry for your PKG directory:
+
+    ```text
+    /srv/pkgs    192.168.1.0/24(ro,sync,no_subtree_check)
+    ```
+
+    Then apply the changes:
+
+    ```bash
+    sudo exportfs -ra
+    sudo systemctl restart nfs-server
+    ```
+
+    Verify the export is visible:
+
+    ```bash
+    showmount -e localhost
+    ```
+  </Tab>
+  <Tab title="macOS">
+    Edit `/etc/exports`:
+
+    ```text
+    /Volumes/Data/pkgs -ro -network 192.168.1.0 -mask 255.255.255.0
+    ```
+
+    Apply and start the NFS daemon:
+
+    ```bash
+    sudo nfsd restart
+    sudo nfsd checkexports
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Installing a PKG from NFS
+
+<Steps>
+  <Step title="Configure your NFS server">
+    Export the directory that contains your PKG files following the platform instructions above. Note the server IP address and the export path.
+  </Step>
+  <Step title="Construct the NFS URL">
+    Build the URL using one of the two supported formats. For a server at `192.168.1.50` that exports `/srv/pkgs` and contains `game.pkg`:
+
+    ```text
+    nfs://192.168.1.50/srv/pkgs/game.pkg
+    ```
+  </Step>
+  <Step title="Paste the URL into DPI">
+    Open DirectPackageInstaller and paste the `nfs://` URL into the **PKG URL** field.
+  </Step>
+  <Step title="Click Load">
+    DPI mounts the export (or discovers it) and fetches the PKG header to display metadata.
+  </Step>
+  <Step title="Click Install">
+    DPI pushes the installation task to your console. The console downloads from DPI's local NFS-backed stream.
+  </Step>
+</Steps>
+
+---
+
+## Performance notes
+
+<Info>
+  NFS over a wired gigabit LAN is fast and generally provides better throughput than downloading from the internet. For best results, use a wired connection between your NFS server and your PC.
+</Info>
+
+- **Format 1 (explicit export)** resolves immediately after mounting — no discovery overhead.
+- **Format 2 (auto-discovery)** queries the server for all exports and scans them. If the server has many exports, the first load may be noticeably slower. Subsequent loads of the same URL are faster once the export mapping is cached.
+- Running the NFS server on the same machine as DPI works but splits disk I/O between reading the PKG and serving it to the console.

@@ -1,0 +1,136 @@
+---
+title: "Reading DirectPackageInstaller logs and diagnosing errors"
+description: "Learn how to enable logging, locate DPI-ERROR.log and DPI-CRASH.log, interpret common error messages, and report issues effectively."
+---
+
+When something goes wrong, DirectPackageInstaller writes diagnostic information to log files in its working directory. Knowing which file to check, how to enable verbose output, and what specific messages mean will help you resolve most problems without opening a support ticket.
+
+## Log files
+
+DPI produces up to three log files depending on the situation and your settings.
+
+| File | When it is written |
+|------|-------------------|
+| `DPI-CRASH.log` | Whenever the application terminates due to an unhandled exception. Always written on crash — no special settings required. |
+| `DPI-ERROR.log` | When a network or server error occurs during an install attempt. Check this first when an installation fails without a clear on-screen message. |
+| `DPIServer.log` | Verbose HTTP request log produced by the internal proxy server. Only written when **Show Error** is enabled in settings. |
+
+<Note>
+  On Windows and Linux, log files are written to the same directory as the DPI executable. On macOS, logs are written to `~/Library/Application Support/DirectPackageInstaller/`.
+</Note>
+
+## Enabling verbose logging
+
+By default, `DPIServer.log` is not written in release builds. To enable it:
+
+<Steps>
+  <Step title="Open Options">
+    In the GUI, open the **Options** menu.
+  </Step>
+  <Step title="Enable Show Error">
+    Toggle **Show Error** on. DPI saves this to `Settings.ini` and the setting persists across restarts.
+  </Step>
+  <Step title="Reproduce the issue">
+    Restart DPI and repeat the steps that caused the problem. `DPIServer.log` will be created in the working directory and will capture all incoming requests, response lengths, and server lifecycle events in real time.
+  </Step>
+</Steps>
+
+<Tip>
+  `DPIServer.log` is especially useful for confirming whether the PS4 or PS5 is connecting to DPI's proxy at all. If the log is empty after triggering a download on the console, the console cannot reach DPI's HTTP server.
+</Tip>
+
+## Common error messages
+
+The messages below correspond to errors reported in the DPI source code. Match the text you see to the entry here for a diagnosis and fix.
+
+<AccordionGroup>
+  <Accordion title='"Another Instance of the DPI is Running?"'>
+    DPI's internal HTTP server tried to bind TCP port **9898** and failed because the port is already in use.
+
+    **Cause:** Another DPI window is open, or a previous instance did not exit cleanly and the port has not been released.
+
+    **Fix:** Close all other DPI windows. If the port is still occupied, restart your PC or use `netstat` to identify and terminate the process holding port 9898.
+  </Accordion>
+
+  <Accordion title='"Failed to Detect your PC IP"'>
+    DPI tried to determine your machine's LAN IP automatically and failed.
+
+    **Cause:** The PC has no usable local network interface, or the detection timed out before a match could be made.
+
+    **Fix:** Pass the `-Server` flag explicitly in CLI mode:
+
+    ```bash
+    DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 http://example.com/game.pkg
+    ```
+
+    In GUI mode, enter your PC's LAN IP in **Options**.
+  </Accordion>
+
+  <Accordion title='"Failed to Detect your PS4 IP"'>
+    PS4 auto-discovery sends UDP broadcast packets on your LAN and waits for a console response. The discovery failed.
+
+    **Cause:** The router blocks broadcast traffic, the console is on a different subnet, or the console is not in a state where it responds to discovery packets.
+
+    **Fix:** Pass the `-PS4` flag explicitly in CLI mode:
+
+    ```bash
+    DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 http://example.com/game.pkg
+    ```
+
+    In GUI mode, enter the PS4/PS5 IP address in **Options**.
+  </Accordion>
+
+  <Accordion title='"Missing PKG URL"'>
+    No URL or file path was supplied to CLI mode.
+
+    **Cause:** The positional URL argument was omitted from the command.
+
+    **Fix:** Add the PKG URL or file path as the last argument:
+
+    ```bash
+    DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 http://example.com/game.pkg
+    ```
+  </Accordion>
+
+  <Accordion title='"Failed to get the PKG Info"'>
+    DPI opened the URL or file and tried to parse PKG metadata from its header, but the result was invalid.
+
+    **Cause:** The URL points to an HTML page or error response rather than a binary PKG file, or the hosting service requires authentication that DPI does not have.
+
+    **Fix:** Open the URL directly in a browser — it should trigger a file download, not display a webpage. If the host requires a login, configure the relevant API key in **Options** (for AllDebrid, RealDebrid, or DebridLink) or use a direct link that does not require authentication.
+  </Accordion>
+
+  <Accordion title='"0x80990085"'>
+    The PS4 or PS5 reported that it does not have enough free storage space to accept the package.
+
+    **Fix:** Free up space on the console's internal or extended storage, then retry the installation.
+
+    <Warning>
+      This error originates from the console firmware and cannot be worked around by DPI. It can appear even when the console shows some available space, if that space is slightly less than what the firmware requires during installation.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="HTTP 429 Too Many Requests">
+    DPI's cache endpoint returned a 429 response to the PS4.
+
+    **Cause:** In segmented mode, DPI buffers the download sequentially. If the PS4 requests a range that starts far beyond what has been buffered, DPI responds with HTTP 429 and a `Retry-After` header to throttle the console until the buffer catches up.
+
+    **Fix:** No action is required. This is intentional behavior and typically resolves on its own within a few seconds as DPI's download threads fill the buffer. If 429 responses loop indefinitely, check `DPI-ERROR.log` for a download stall upstream.
+  </Accordion>
+</AccordionGroup>
+
+## Reporting an issue
+
+If the logs and the entries above do not resolve your problem, open an issue on GitHub.
+
+<Steps>
+  <Step title="Collect log files">
+    Gather `DPI-CRASH.log` and `DPI-ERROR.log` from the working directory. If the issue involves the HTTP server or download behavior, also collect `DPIServer.log` — you must enable **Show Error** in settings before reproducing the issue for this file to be written.
+  </Step>
+  <Step title="Document the reproduction steps">
+    Note the URL format (direct link, Google Drive, RAR archive, etc.), the download mode (direct, proxy, segmented), your platform (Windows, macOS, Linux, Android), and the exact sequence of steps that triggered the problem.
+  </Step>
+  <Step title="Open an issue">
+    Submit the report at [github.com/marcussacana/DirectPackageInstaller/issues](https://github.com/marcussacana/DirectPackageInstaller/issues). Paste the relevant log excerpts directly into the issue body rather than attaching them as files where possible.
+  </Step>
+</Steps>

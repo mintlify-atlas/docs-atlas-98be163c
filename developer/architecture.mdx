@@ -1,0 +1,143 @@
+---
+title: "DirectPackageInstaller architecture overview"
+description: "How DirectPackageInstaller works internally: the local HTTP server, install methods, download pipeline, and how components connect."
+---
+
+DirectPackageInstaller (DPI) is a .NET 8 Avalonia application. Its core is a local HTTP server — `PS4Server`, listening on port 9898 — that bridges file sources (remote URLs, local files, compressed archives, segmented caches) to the PS4/PS5 package installer. When the user triggers an install, DPI resolves the source URL, optionally downloads and caches data in the background, rewrites the URL to point at its own HTTP server, and then pushes that rewritten URL to the console via one of three install methods.
+
+## Install methods
+
+DPI probes the console at install time and picks the first method that responds.
+
+### Remote Package Installer (RPI)
+
+RPI is a PS4 homebrew application that exposes a REST API on port 12800. DPI sends a JSON POST request:
+
+```http
+POST http://{PS4_IP}:12800/api/install
+Content-Type: application/json
+
+{"type":"direct","packages":["<url>"]}
+```
+
+A response body containing `"success"` indicates the console has started downloading. See `Installer.cs:289` (`PushRPI`).
+
+### etaHEN DPIv2
+
+etaHEN exposes a file-upload endpoint on the same port. DPI sends a multipart POST:
+
+```http
+POST http://{PS4_IP}:12800/upload
+Content-Type: multipart/form-data; boundary=...
+
+--boundary
+Content-Disposition: form-data; name="file"; filename=""
+Content-Type: application/octet-stream
+
+--boundary
+Content-Disposition: form-data; name="url"
+
+<url>
+```
+
+A response containing `SUCCESS:` confirms the install was accepted. See `Installer.cs:216` (`PushEtaHen`).
+
+### GoldHEN payload
+
+When neither RPI nor etaHEN is available, DPI falls back to the GoldHEN payload protocol. See [PS4Server HTTP routes and payload protocol internals](/developer/server-internals) for the full protocol specification.
+
+## Source flags
+
+The `Source` enum in `Enums.cs` is a `[Flags]` type. Values are combined with bitwise OR to express the active download pipeline:
+
+| Flag | Hex | Meaning |
+|---|---|---|
+| `URL` | `0x01` | Input is a remote URL |
+| `JSON` | `0x02` | Input is a PSN split-PKG JSON manifest |
+| `RAR` | `0x04` | Source is inside a RAR archive |
+| `File` | `0x08` | Source is a local file path |
+| `Proxy` | `0x10` | Stream the source through DPI's `/proxy/` route |
+| `SevenZip` | `0x20` | Source is inside a 7z archive |
+| `DiskCache` | `0x40` | File host is `Limited`; pre-download to local cache |
+| `Segmented` | `0x80` | Download in parallel segments to local cache |
+
+`Installer.PushPackage` normalises the combined flags before the switch statement that maps them to HTTP server URLs. For example:
+
+- `Source.URL | Source.Proxy` → `/proxy/?b64=…`
+- `Source.URL | Source.Segmented` → pre-download, then `/cache/?b64=…`
+- `Source.URL | Source.RAR` → decompress in background, then `/unrar/?id=…`
+- `Source.JSON` → merge split-PKG pieces via `/merge/?b64=…`
+- `Source.File` → serve local file via `/file/?b64=…`
+
+<Note>
+  Compressed archives (`RAR`, `SevenZip`) and local files (`File`) strip the
+  `Proxy`, `Segmented`, and `DiskCache` flags unconditionally — these modes are
+  incompatible with streaming decompression.
+</Note>
+
+## HTTP server routes
+
+`PS4Server` registers a single default route handler (`Process`) that dispatches on the leading path segment. All routes accept HTTP `Range` headers and respond with `206 Partial Content` when a range is requested, which is required by the PS4's package downloader.
+
+| Route | Handler | Purpose |
+|---|---|---|
+| `/proxy/` | `Proxy` | Fetch a URL through DPI and stream it to the PS4 |
+| `/cache/` | `Cache` | Serve data from a `DownloaderTask` segmented cache |
+| `/file/` | `File` | Serve a local file by path |
+| `/merge/` | `Merge` | Merge a PSN split-PKG JSON manifest into a single stream |
+| `/split/` | `Split` | Serve a specific byte-range slice of a source URL |
+| `/json/` | `Json` | Serve a generated `PKGManifest` JSON document |
+| `/unrar/` | `Decompress.Unrar` | Decompress and stream a RAR archive entry |
+| `/un7z/` | `Decompress.Un7z` | Decompress and stream a 7z archive entry |
+
+The URL parameter is passed either as a plain `?url=…` query string value or as `?b64=<base64url>` to avoid issues with percent-encoding in nested URLs.
+
+<Info>
+  The `/cache/` route returns `429 Too Many Requests` with a
+  `Retry-After: 300` header if the PS4 seeks more than 100 MB ahead of the
+  current download position (`MaxSkipBufferSize = 100 MB`). This prevents
+  the PS4 from jumping too far ahead of a still-buffering segmented download.
+</Info>
+
+## PKG manifest generation and AutoSplit
+
+When a PKG exceeds 4 GiB and `AutoSplitPKG` is enabled, `PS4Server.RegisterJSON` splits the package into 4 GiB pieces and serialises a `PKGManifest` JSON document:
+
+```json
+{
+  "originalFileSize": 12884901888,
+  "packageDigest": "…",
+  "numberOfSplitFiles": 3,
+  "pieces": [
+    {
+      "url": "http://192.168.1.100:9898/split/?b64=…&offset=0&size=4294967296",
+      "fileOffset": 0,
+      "fileSize": 4294967296,
+      "hashValue": "0000000000000000000000000000000000000000"
+    },
+    …
+  ]
+}
+```
+
+The JSON is stored in memory (`PS4Server.JSONs`) and served via `/json/{id}.json`. The PS4 fetches the manifest, then requests each piece through the `/split/` route.
+
+## Data flow diagram
+
+```mermaid
+flowchart TD
+    A[User pastes URL] --> B[FileHostBase resolves direct link]
+    B --> C{Source flags}
+    C -- URL only --> D[PS4 downloads directly]
+    C -- Proxy --> E[/proxy/ route\nstreams URL through DPI]
+    C -- Segmented --> F[DownloaderTask\npre-fetches to disk cache]
+    F --> G[/cache/ route\nserves from cache]
+    C -- RAR/7z --> H[DecompressService\nstreams decompressed entry]
+    H --> I[/unrar/ or /un7z/ route]
+    C -- JSON --> J[/merge/ route\ncombines split-PKG pieces]
+    C -- File --> K[/file/ route\nserves local path]
+    E & G & I & J & K --> L{Install method}
+    L -- RPI online --> M[POST /api/install]
+    L -- etaHEN online --> N[POST /upload]
+    L -- GoldHEN payload --> O[TCP payload → PS4 connects back]
+```

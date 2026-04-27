@@ -1,0 +1,113 @@
+---
+title: "Configure DirectPackageInstaller settings and options"
+description: "Reference for all DirectPackageInstaller settings: PS4/PC IP addresses, API keys, download options, DHCP, CNL, and auto-split PKG."
+---
+
+DirectPackageInstaller stores all of its configuration in a file called `Settings.ini`, located in the DPI working directory. The settings cover network addresses, debrid service credentials, download behavior, and optional system features. Most settings map directly to toggles in the **Options** menu; the fields below document every available key and what it controls.
+
+## Network settings
+
+<ParamField path="PSIP" type="string" required>
+  The IP address of your PS4 or PS5 on the local network. DPI uses this address to send PKG install requests via Remote Package Installer, GoldHEN Payload Server, or the etaHEN DPIv2 API. If `SearchPS4` is enabled, this value is populated automatically when DPI detects a console on the LAN.
+</ParamField>
+
+<ParamField path="PCIP" type="string" required>
+  Your PC's LAN IP address. DPI binds its internal proxy and PKG info server to this address so the PS4 can reach it. Set this to the IP of the network interface that is on the same subnet as the console.
+</ParamField>
+
+<ParamField path="EthernetAdapter" type="string">
+  The name of a specific ethernet adapter to use for the auto LAN cable connection feature. When set, DPI configures that adapter to communicate directly with the console over a crossover or direct cable. This setting is **Windows only** and has no effect on other platforms.
+</ParamField>
+
+<ParamField path="SearchPS4" type="boolean" default="false">
+  When enabled, DPI scans the local network on startup to auto-detect a PS4 or PS5 and populate `PSIP` automatically. Disable this if you prefer to enter the console IP manually or if the scan causes delays on your network.
+</ParamField>
+
+<ParamField path="EnableDHCP" type="boolean" default="false">
+  Activates a built-in DHCP server so DPI can assign an IP address to a console connected via a direct ethernet cable, without a router in between. This is **Windows only**. Requires `EthernetAdapter` to be set to the correct adapter name.
+</ParamField>
+
+<ParamField path="PayloadPort" type="integer">
+  The port on which DPI's PKG info server listens. Leave this unset (null) to let the operating system assign a free port automatically. Set a specific value only if your firewall requires fixed inbound ports.
+</ParamField>
+
+## API key settings
+
+<ParamField path="AllDebridApiKey" type="string">
+  Your AllDebrid API key. Required when `UseAllDebrid` is `true`. Obtain a key at [alldebrid.com/apikeys](https://alldebrid.com/apikeys/).
+</ParamField>
+
+<ParamField path="UseAllDebrid" type="boolean" default="false">
+  Enable AllDebrid link resolution. When `true` and a valid `AllDebridApiKey` is present, DPI will attempt to unlock supported file host URLs through AllDebrid before falling back to other hosts.
+</ParamField>
+
+<ParamField path="RealDebridApiKey" type="string">
+  Your RealDebrid API token. Required when `UseRealDebrid` is `true`. Obtain a token at [real-debrid.com/apitoken](https://real-debrid.com/apitoken).
+</ParamField>
+
+<ParamField path="UseRealDebrid" type="boolean" default="false">
+  Enable RealDebrid link resolution. When `true` and a valid `RealDebridApiKey` is present, DPI resolves supported host URLs through RealDebrid.
+</ParamField>
+
+<ParamField path="DebridLinkApiKey" type="string">
+  Your DebridLink API key. Required when `UseDebridLink` is `true`. Obtain a key at [debrid-link.com/webapp/apikey](https://debrid-link.com/webapp/apikey).
+</ParamField>
+
+<ParamField path="UseDebridLink" type="boolean" default="false">
+  Enable DebridLink link resolution. When `true` and a valid `DebridLinkApiKey` is present, DPI resolves supported host URLs through DebridLink.
+</ParamField>
+
+## Download options
+
+<ParamField path="ProxyDownload" type="boolean" default="false">
+  Route all downloads through DPI acting as a proxy between the internet and the PS4. This is useful when your console has no direct internet access. Because the PS4 typically achieves much higher speeds over LAN than over WAN, proxying through your PC can significantly improve download performance even when the console does have internet access.
+</ParamField>
+
+<ParamField path="SegmentedDownload" type="boolean" default="false">
+  Use parallel multi-threaded segmented downloads. DPI downloads the PKG in multiple concurrent chunks to your PC and streams it to the console simultaneously. This is the fastest available download mode. Requires sufficient free disk space equal to the PKG size.
+
+  <Note>
+    The PS4 cannot track download progress accurately in segmented mode. Use your PC's Task Manager or system network monitor to observe real transfer rates.
+  </Note>
+</ParamField>
+
+<ParamField path="AutoSplitPKG" type="boolean" default="false">
+  Automatically split large PKG files into 4 GB pieces before sending them to the PS4. The PS4's file system cannot handle single files larger than 4 GB on FAT32 storage, so enabling this option allows oversized packages to be installed without manual splitting.
+</ParamField>
+
+## Miscellaneous
+
+<ParamField path="SkipUpdateCheck" type="boolean" default="false">
+  Disable the automatic update check that DPI performs on startup. Enable this if you are on a restricted network, prefer to manage updates manually, or want to reduce startup time.
+</ParamField>
+
+<ParamField path="EnableCNL" type="boolean" default="false">
+  Enable the JDownloader Click'n Load (CNL) server. When active, DPI listens for CNL packages sent from a browser extension or JDownloader and automatically populates the PKG URL field. Useful for capturing links directly from your browser without copy-pasting.
+</ParamField>
+
+<ParamField path="ShowError" type="boolean" default="false">
+  Write server-side logs and error details to a `DPIServer.log` file in the DPI working directory. Enable this when troubleshooting failed installs or unexpected behaviour. Disable it in normal use to avoid accumulating large log files.
+</ParamField>
+
+## Settings file location
+
+All settings are read from and written to `Settings.ini` in the DPI working directory — the folder where the DPI executable is located. The file is created automatically on first run. You can edit it directly in a text editor or change values through the **Options** menu in the DPI interface.
+
+```ini Settings.ini
+PSIP=192.168.1.100
+PCIP=192.168.1.10
+SearchPS4=True
+ProxyDownload=False
+SegmentedDownload=False
+AutoSplitPKG=False
+EnableDHCP=False
+EnableCNL=False
+ShowError=False
+SkipUpdateCheck=False
+UseAllDebrid=False
+AllDebridApiKey=
+UseRealDebrid=False
+RealDebridApiKey=
+UseDebridLink=False
+DebridLinkApiKey=
+```

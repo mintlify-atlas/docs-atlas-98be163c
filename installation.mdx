@@ -1,0 +1,176 @@
+---
+title: "Install DirectPackageInstaller on your platform"
+description: "Download and install DirectPackageInstaller for your platform. Windows, Linux, and Android require .NET 8 Runtime; macOS builds are self-contained."
+---
+
+DirectPackageInstaller distributes as a zip archive (or DMG on macOS) for each supported platform and architecture. There is no installer wizard — you extract the archive and run the executable. The only prerequisite on Windows, Linux, and Android is the .NET 8 Runtime; macOS builds bundle the runtime and are fully self-contained.
+
+## Prerequisites
+
+<Warning>
+  Windows, Linux, and Android builds **require** the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) to be installed before running DPI. macOS builds include the runtime and do not require a separate install.
+</Warning>
+
+Install the .NET 8 Runtime for your platform from the official Microsoft download page before proceeding:
+
+```
+https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime
+```
+
+## Download
+
+Choose your platform below and download the archive for your CPU architecture. If you are unsure of your architecture, x64 is the correct choice for most modern desktop PCs and laptops.
+
+<Tabs>
+  <Tab title="Windows">
+    Windows builds require the .NET 8 Runtime.
+
+    | Architecture | Download |
+    |---|---|
+    | ARM | [Windows-ARM.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-ARM.zip) |
+    | ARM64 | [Windows-ARM64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-ARM64.zip) |
+    | x64 | [Windows-X64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-X64.zip) |
+    | x86 | [Windows-X86.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-X86.zip) |
+
+    <Steps>
+      <Step title="Install .NET 8 Runtime">
+        Download and run the .NET 8 Runtime installer from [Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime).
+      </Step>
+      <Step title="Download the archive">
+        Click the link for your architecture in the table above and save the zip file.
+      </Step>
+      <Step title="Extract the archive">
+        Right-click the zip and select **Extract All**, or use your preferred extraction tool.
+      </Step>
+      <Step title="Run DirectPackageInstaller">
+        Open the extracted folder and double-click `DirectPackageInstaller.Desktop.exe`. On first launch, Windows Defender SmartScreen may show a warning — click **More info**, then **Run anyway**.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Linux">
+    Linux builds require the .NET 8 Runtime.
+
+    | Architecture | Download |
+    |---|---|
+    | ARM | [Linux-ARM.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-ARM.zip) |
+    | ARM64 | [Linux-ARM64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-ARM64.zip) |
+    | x64 | [Linux-X64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-X64.zip) |
+
+    <Steps>
+      <Step title="Install .NET 8 Runtime">
+        Follow the [Microsoft instructions](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) for your Linux distribution to install the .NET 8 Runtime.
+      </Step>
+      <Step title="Download and extract the archive">
+        Download the zip for your architecture and extract it:
+
+        ```bash
+        unzip Linux-X64.zip -d DirectPackageInstaller
+        ```
+      </Step>
+      <Step title="Make the binary executable">
+        ```bash
+        chmod +x DirectPackageInstaller/DirectPackageInstaller.Desktop
+        ```
+      </Step>
+      <Step title="Run DirectPackageInstaller">
+        ```bash
+        ./DirectPackageInstaller/DirectPackageInstaller.Desktop
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="macOS">
+    macOS builds are **self-contained** — the .NET 8 runtime is bundled and no separate install is required. App builds (`.app`) are ad-hoc signed and launch on Apple Silicon without additional steps.
+
+    **CLI builds**
+
+    | Architecture | Download |
+    |---|---|
+    | ARM64 | [OSX-ARM64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64.zip) |
+    | x64 | [OSX-X64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64.zip) |
+
+    **App builds (zip)**
+
+    | Architecture | Download |
+    |---|---|
+    | ARM64 | [OSX-ARM64-APP.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.zip) |
+    | x64 | [OSX-X64-APP.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.zip) |
+
+    **App builds (DMG, drag-to-Applications)**
+
+    | Architecture | Download |
+    |---|---|
+    | ARM64 | [OSX-ARM64-APP.dmg](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.dmg) |
+    | x64 | [OSX-X64-APP.dmg](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.dmg) |
+
+    <Steps>
+      <Step title="Download your preferred build">
+        Choose the DMG for a standard macOS install experience, the App zip for a portable `.app`, or the CLI zip if you prefer the terminal.
+      </Step>
+      <Step title="Install or extract">
+        - **DMG**: Open the DMG and drag `DirectPackageInstaller.app` to your **Applications** folder.
+        - **App zip**: Extract the zip and move the `.app` to **Applications** or run it in place.
+        - **CLI zip**: Extract the zip and navigate to the folder in Terminal.
+      </Step>
+      <Step title="Remove Gatekeeper quarantine if needed">
+        If Gatekeeper blocks the app after extracting the zip, run the following command in Terminal:
+
+        ```bash
+        xattr -dr com.apple.quarantine /Applications/DirectPackageInstaller.app
+        ```
+
+        <Note>
+          This step is only needed for zip-extracted App builds. DMG-installed builds are ad-hoc signed and should launch without this step on Apple Silicon.
+        </Note>
+      </Step>
+      <Step title="Run DirectPackageInstaller">
+        - **App build**: Double-click `DirectPackageInstaller.app` in Applications or Finder.
+        - **CLI build**: Run the binary from Terminal:
+
+          ```bash
+          ./DirectPackageInstaller.Desktop
+          ```
+
+          If the above does not work, try:
+
+          ```bash
+          dotnet DirectPackageInstaller.Desktop.dll
+          ```
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Android">
+    Android builds require the .NET 8 Runtime and target API level 26 (Android 8.0) or higher.
+
+    | Architecture | Download |
+    |---|---|
+    | ARM | [Android-ARM.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-ARM.zip) |
+    | ARM64 | [Android-ARM64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-ARM64.zip) |
+    | x64 | [Android-X64.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-X64.zip) |
+    | x86 | [Android-X86.zip](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-X86.zip) |
+
+    <Steps>
+      <Step title="Install .NET 8 Runtime">
+        Install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) on your Android device. Most users install it via a compatible runtime package for their device.
+      </Step>
+      <Step title="Download and extract the archive">
+        Download the zip for your device's CPU architecture (ARM64 covers most modern Android phones) and extract it to a directory you can access from a terminal emulator.
+      </Step>
+      <Step title="Run DirectPackageInstaller">
+        Use a terminal emulator app to navigate to the extracted directory and run:
+
+        ```bash
+        ./DirectPackageInstaller.Desktop
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Network requirement
+
+<Note>
+  DPI must run on a device connected to the **same local network** as your PS4 or PS5. The console communicates with DPI's built-in HTTP server, so both devices must be reachable on the same subnet. Guest Wi-Fi networks that isolate clients from each other will not work.
+</Note>
+
+Once DPI is running and your console is on the same network, you are ready to install your first package. See the [introduction](/introduction) for an overview of the three supported installation methods, or jump straight into using the GUI.

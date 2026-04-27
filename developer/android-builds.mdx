@@ -1,0 +1,117 @@
+---
+title: "Build DirectPackageInstaller for Android"
+description: "Install Android SDK and NDK, accept SDK licenses, configure Build.cmd paths, and compile DirectPackageInstaller for Android (API 26+) on Windows or Linux."
+---
+
+DirectPackageInstaller targets Android API level 26 and above via a dedicated `DirectPackageInstaller.Android` project. Building locally requires the Android SDK and NDK in addition to the standard .NET 8 SDK. On first run on Windows, the build must be launched as an administrator so that the SDK license acceptance step can write to protected directories.
+
+<Warning>
+  On Windows, the very first build must be run as **administrator**. This is
+  required only once — subsequent builds can run without elevated privileges.
+  On Linux/macOS no elevation is needed.
+</Warning>
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| .NET 8.x SDK | Must include the `android` workload (`dotnet workload restore`) |
+| Android SDK | Must include `build-tools` |
+| Android NDK | Tested with `ndk/24.0.8215888` |
+| SDK licenses accepted | Run `sdkmanager --licenses` at least once |
+
+## Build steps
+
+<Steps>
+  <Step title="Install Android SDK and NDK">
+    Install the Android SDK via Android Studio, the `sdkmanager` command-line tool, or your system package manager. Make sure the NDK component is installed alongside the SDK:
+
+    ```bash
+    sdkmanager "ndk;24.0.8215888"
+    ```
+  </Step>
+  <Step title="Accept SDK licenses">
+    The .NET Android workload requires all SDK licenses to be accepted before it can invoke `aapt2` and other build tools:
+
+    ```bash
+    sdkmanager --licenses
+    ```
+
+    Accept every prompt. This only needs to be done once per machine.
+  </Step>
+  <Step title="Edit Build.cmd to set SDK and NDK paths">
+    Open `Build.cmd` in a text editor. Near the top of the Unix section and the Windows (`:BATCH`) section, set the two path variables to match your local installation.
+
+    **Unix** (replace the default values):
+    ```bash
+    export AndroidSdkDirectory=~/Android/Sdk/
+    export AndroidNdkDirectory=~/Android/Sdk/ndk/24.0.8215888/
+    ```
+
+    **Windows** (replace the default values):
+    ```bat
+    set AndroidSdkDirectory=C:\Program Files (x86)\Android\android-sdk\
+    set AndroidNdkDirectory=C:\Program Files (x86)\Android\android-sdk\ndk\24.0.8215888\
+    ```
+
+    The script validates these paths at build time: `AndroidSdkDirectory` must contain a `build-tools` subdirectory, and `AndroidNdkDirectory` must contain an `ndk-build` executable (or `ndk-build.cmd` on Windows).
+  </Step>
+  <Step title="Run Build.cmd (as admin on Windows, first time only)">
+    **Windows (first run — elevated):**
+    Right-click a Command Prompt and choose "Run as administrator", then:
+
+    ```bat
+    Build.cmd
+    ```
+
+    **Unix:**
+    ```bash
+    ./Build.cmd
+    ```
+
+    To build only the Android targets and skip other platforms:
+
+    ```bash
+    BUILD_TARGETS=android ./Build.cmd
+    ```
+  </Step>
+  <Step title="Collect APK archives">
+    The script places one zip per ABI in `Release/`:
+
+    - `Android-ARM.zip`
+    - `Android-ARM64.zip`
+    - `Android-X64.zip`
+    - `Android-X86.zip`
+
+    Each zip contains the signed APK for that ABI.
+  </Step>
+</Steps>
+
+## GitHub Actions alternative
+
+If setting up a local Android toolchain is inconvenient, fork the repository on GitHub. The included workflow already configures the Android SDK, NDK, and license acceptance automatically — no local setup is required.
+
+<Tip>
+  The GitHub Actions runner exports `AndroidSdkDirectory` and
+  `AndroidNdkDirectory` automatically when the standard `setup-android-sdk` step
+  is present. The `Build.cmd` script detects the standard CI path
+  (`/usr/local/lib/android/sdk`) and sets the variables for you.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="ANDROID SDK NOT FOUND or ANDROID NDK NOT FOUND">
+    The script checks that `${AndroidSdkDirectory}build-tools` is a directory and that `${AndroidNdkDirectory}ndk-build` (or `ndk-build.cmd`) is a file. Verify your path variables point to the correct locations and that both components are actually installed.
+  </Accordion>
+  <Accordion title="dotnet workload restore fails">
+    Ensure you are running the command with a .NET 8 SDK that includes Android workload support. Install it with:
+
+    ```bash
+    dotnet workload install android
+    ```
+  </Accordion>
+  <Accordion title="License errors on subsequent Windows builds">
+    If license errors reappear after the first run, re-run `sdkmanager --licenses` and then re-run `Build.cmd` as administrator once more.
+  </Accordion>
+</AccordionGroup>

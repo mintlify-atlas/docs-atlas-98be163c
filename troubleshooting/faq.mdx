@@ -1,0 +1,123 @@
+---
+title: "DirectPackageInstaller FAQ and common issues"
+description: "Answers to frequently asked questions about DirectPackageInstaller: slow starts, speed issues, segmented mode, errors, and installation failures."
+---
+
+DirectPackageInstaller (DPI) handles a variety of file types, hosts, and network configurations, so some behaviors that look like bugs are actually expected. This page answers the most common questions and explains what to do when something goes wrong.
+
+<AccordionGroup>
+  <Accordion title="My download is taking too long to start">
+    If the URL points to a multipart compressed archive (such as a split RAR set), DPI must open and scan every volume to locate the PKG entry before it can begin streaming. The more volumes in the archive, the longer this initial scan takes. This is expected behavior and not a bug.
+
+    Wait for DPI to finish scanning. Progress will resume once the PKG entry is located.
+
+    <Note>
+      Single-file PKGs and uncompressed direct links are not affected by this scan and will start immediately.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Download speed is slow even in segmented mode">
+    Segmented mode does not report accurate real-time progress to the PS4. The speed indicator on your console will appear lower than the actual transfer rate.
+
+    To see your true download speed, monitor network activity in **Task Manager** on Windows (or **Activity Monitor** on macOS) while the transfer is running. If the network graph shows high throughput, the transfer is proceeding normally despite what the PS4 screen shows.
+  </Accordion>
+
+  <Accordion title="I'm only getting 2 Mbps in segmented mode">
+    The bottleneck is the file hosting service, not DPI or your network. Some hosts impose server-side speed limits that affect all clients regardless of your connection speed.
+
+    Test the same file on Google Drive or through an AllDebrid link to confirm whether the host is the limiting factor. If speed improves significantly, switch to a faster host.
+  </Accordion>
+
+  <Accordion title="Which file hosting service gives the best speeds?">
+    Speed varies by host. From fastest to slowest based on typical results:
+
+    | Host | Notes |
+    |------|-------|
+    | AllDebrid / RealDebrid | Fastest — recommended; requires API key in Options |
+    | Google Drive | Fast and reliable for most regions |
+    | MediaFire | Moderate |
+    | 1Fichier | Slowest; enforces wait times between downloads |
+
+    <Tip>
+      If you have an AllDebrid or RealDebrid API key, configure it in **Options**. DPI will automatically route supported links through the debrid service for maximum speed.
+    </Tip>
+  </Accordion>
+
+  <Accordion title="I got an error during installation">
+    Installation errors are written to log files in DPI's working directory.
+
+    <Steps>
+      <Step title="Locate the log file">
+        Open the folder where DPI is installed and find `DPI-CRASH.log` or `DPI-ERROR.log`.
+      </Step>
+      <Step title="Review the log">
+        Open the file in any text editor and look for the most recent error entry.
+      </Step>
+      <Step title="Report the issue">
+        Open an issue at [github.com/marcussacana/DirectPackageInstaller/issues](https://github.com/marcussacana/DirectPackageInstaller/issues) and include the full contents of the log along with a description of what you were doing when the error occurred.
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title='DPI says "Another Instance of the DPI is Running"'>
+    Port **9898** is already bound on your machine. This happens when a previous DPI session did not shut down cleanly, or when another application is using the same port.
+
+    Close all other DPI windows and try again. If the error persists, restart your computer to release the port.
+
+    <Warning>
+      Running two instances of DPI simultaneously will cause conflicts. Make sure only one instance is active at a time.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="DPI can't find my PS4/PS5 IP address">
+    Automatic IP detection uses network broadcast packets, which can fail on certain routers, VPNs, or segmented networks.
+
+    Enter the IP address of your console manually:
+
+    - **GUI:** Open **Options** and fill in the console IP field.
+    - **CLI:** Pass the `-PS4 <ip>` flag when launching DPI.
+
+    You can find your console's IP address in **Settings → Network → View Connection Status**.
+  </Accordion>
+
+  <Accordion title="I get error 0x80990085 on PS4">
+    Error `0x80990085` means your PS4's storage is full. DPI cannot install the package because the console does not have enough free space.
+
+    Delete games, saved data, or other content from your PS4 to free up space, then retry the installation.
+
+    <Warning>
+      This error is returned by the console, not DPI. It can appear even when the console shows some available space, if that space is slightly less than what the firmware requires during installation.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="macOS says the app is damaged and can't be opened">
+    macOS Gatekeeper quarantines applications downloaded from the internet. Run the following command in Terminal to remove the quarantine attribute:
+
+    ```bash
+    xattr -dr com.apple.quarantine /Applications/DirectPackageInstaller.app
+    ```
+
+    If you extracted the app to a different location, replace the path with the actual location of the `.app` bundle. After running the command, open DPI normally.
+
+    <Note>
+      You only need to run this once after installing or updating DPI.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Can I install multiple PKGs at once?">
+    It depends on how you run DPI:
+
+    - **CLI mode:** Pass a `.txt` file as the URL argument. Put one PKG URL per line. DPI processes them sequentially.
+    - **GUI mode:** DPI handles one installation at a time. Start the next install manually after each one completes.
+
+    ```bash
+    DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 /path/to/list.txt
+    ```
+  </Accordion>
+
+  <Accordion title="RAR/7z archives are not working in CLI mode">
+    Compressed archive formats (RAR and 7z) are only supported in **GUI mode**. CLI mode accepts direct PKG URLs and plain URL list files, but does not handle archive extraction.
+
+    If your file is a RAR or 7z archive, use the GUI to install it, or extract the PKG manually and provide the direct path or URL to the `.pkg` file in CLI mode.
+  </Accordion>
+</AccordionGroup>

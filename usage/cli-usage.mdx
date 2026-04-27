@@ -1,0 +1,124 @@
+---
+title: "DirectPackageInstaller CLI reference and usage"
+description: "Use DirectPackageInstaller from the command line. Full flag reference for -Server, -PS4, -Port, -DPIPort, -Proxy, and URL arguments."
+---
+
+DirectPackageInstaller includes an experimental command-line interface for automation, scripting, and headless environments where launching the graphical interface is not practical. The CLI accepts the same network parameters as the GUI and can install directly from a URL, a local file path, or a `.txt` file containing a list of URLs to process in sequence.
+
+<Warning>
+  RAR/7z compressed archives and segmented downloads are **not supported in CLI mode** yet. Use direct `.pkg` URLs, local file paths, or `.txt` URL lists only.
+</Warning>
+
+## Displaying help
+
+<Tabs>
+  <Tab title="Windows">
+    ```bash
+    DirectPackageInstaller.Desktop.exe -help
+    ```
+  </Tab>
+  <Tab title="Linux / Android">
+    ```bash
+    DirectPackageInstaller.Desktop -help
+    ```
+  </Tab>
+  <Tab title="macOS">
+    ```bash
+    ./DirectPackageInstaller.Desktop
+    ```
+    If the above does not work, run via the .NET host:
+    ```bash
+    dotnet DirectPackageInstaller.Desktop.dll
+    ```
+  </Tab>
+</Tabs>
+
+Pass `-UI` as the only argument to launch the graphical interface from the command line instead of entering CLI mode.
+
+## Syntax
+
+```text
+DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT -DPIPort PKG_INFO_PORT [-Proxy] URL
+```
+
+All parameters except `URL` are optional, though omitting `-Server` or `-PS4` triggers auto-detection which may take extra time.
+
+## Parameter reference
+
+<ParamField path="-Server" type="string">
+  IP address of the machine running DirectPackageInstaller (your PC). Also accepted as `-LAN`, `-ServerIP`, or `-LANIP`.
+
+  If omitted, DPI auto-detects your local IP by examining which interface can reach the console. Auto-detection is unreliable when the machine has multiple active network connections (for example, both Ethernet and Wi-Fi).
+</ParamField>
+
+<ParamField path="-PS4" type="string">
+  IP address of your PS4 or PS5. Also accepted as `-PS4IP`.
+
+  Optional. If omitted, DPI broadcasts on the LAN to discover the console automatically. This can take several seconds and will block until a console is found.
+</ParamField>
+
+<ParamField path="-Port" type="integer">
+  Port where the PS4's bin loader is listening. Also accepted as `-Binloader`.
+
+  If omitted, DPI tries ports `9090`, `9021`, and `9020` in order. You rarely need to set this explicitly.
+</ParamField>
+
+<ParamField path="-DPIPort" type="integer">
+  Port that DPI listens on so the PS4 can send PKG metadata back.
+
+  If omitted, the operating system assigns a free port automatically. You can save a fixed port to `Settings.ini` so that the same port is used across runs without specifying it every time.
+</ParamField>
+
+<ParamField path="-Proxy" type="boolean">
+  Routes the PS4's download through DPI as an HTTP proxy instead of having the console download directly from the source URL.
+
+  Use this flag when your PS4 has no direct internet access or when the hosting service requires the download to come from a single IP.
+</ParamField>
+
+<ParamField path="-UI" type="boolean">
+  Launches the graphical interface instead of running in CLI mode. Passing this flag ignores all other parameters.
+</ParamField>
+
+<ParamField path="URL" type="string" required>
+  The PKG source. Accepted values:
+
+  - A direct `http://` or `https://` URL to a `.pkg` file
+  - An absolute local file path to a `.pkg` file
+  - An absolute path to a `.txt` file containing one URL per line (batch mode)
+</ParamField>
+
+## Examples
+
+```bash
+# Basic install — auto-detect PC IP, specify console IP
+DirectPackageInstaller.Desktop -PS4 192.168.1.20 http://example.com/game.pkg
+```
+
+```bash
+# Explicit server IP, custom bin loader port, proxy enabled
+DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 -Port 9090 -DPIPort 8080 -Proxy http://example.com/game.pkg
+```
+
+```bash
+# Install from a local file on disk
+DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 /path/to/game.pkg
+```
+
+```bash
+# Install from a text file list (one URL per line)
+DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 /path/to/list.txt
+```
+
+## PS4 auto-discovery
+
+When `-PS4` is omitted, DPI starts a LAN broadcast search and blocks until it receives a response from a console:
+
+```text
+Searching the PS4...
+```
+
+If auto-discovery finds the console, it also attempts to identify the correct local PC IP for that interface. Providing `-PS4` explicitly skips this step and results in faster startup.
+
+<Tip>
+  If you run DPI from scripts or CI pipelines, always pass both `-Server` and `-PS4` explicitly. Auto-discovery is convenient interactively but unpredictable in automated environments.
+</Tip>

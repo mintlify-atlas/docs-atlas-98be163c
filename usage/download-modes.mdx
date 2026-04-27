@@ -1,0 +1,150 @@
+---
+title: "Download modes: direct, proxy, segmented, and compressed"
+description: "Understand the four download modes in DirectPackageInstaller — direct URL, proxy, segmented parallel, and compressed archive — and when to use each."
+---
+
+DirectPackageInstaller supports four distinct download modes. DPI selects a mode automatically based on the source URL type and your settings, but you can override the default behaviour through the **Options** menu. Understanding the difference between modes helps you choose the right one for your network setup and storage situation.
+
+The four modes map to flags in the internal `Source` enum (`Enums.cs`): `URL`, `Proxy`, `Segmented`, `DiskCache`, `RAR`, and `SevenZip`. Modes can combine — for example, segmented mode always implies proxy (`Source.Segmented | Source.Proxy`), and compressed modes strip proxy and segmented flags because they manage their own streaming pipeline.
+
+---
+
+## Direct URL mode
+
+In direct URL mode DPI sends the original source URL straight to your console. The PS4 or PS5 downloads the PKG file directly from the internet without any traffic passing through your PC.
+
+**When DPI uses this mode:** The source is a plain `http://` or `https://` link, the hosting service allows direct connections, and neither **Proxy Downloads** nor **Segmented Downloads** is enabled in Options.
+
+**Best for:** Consoles that have fast, reliable internet access and the hosting service has no restrictions on multiple simultaneous connections.
+
+<Steps>
+  <Step title="Paste the PKG URL">
+    Enter the direct `.pkg` URL into the **PKG URL** field.
+  </Step>
+  <Step title="Click Load">
+    DPI fetches the PKG header to preview metadata.
+  </Step>
+  <Step title="Click Install">
+    DPI sends the URL to the console. The console downloads directly from the source.
+  </Step>
+</Steps>
+
+<Note>
+  If DPI detects that the hosting service requires a single connection or does not support direct linking, it automatically switches to proxy mode for that download.
+</Note>
+
+---
+
+## Proxy download mode
+
+In proxy mode DPI acts as an HTTP intermediary. The console sends all download requests to DPI, and DPI fetches the content from the remote server and forwards it. All traffic travels over your local network.
+
+**When DPI uses this mode:**
+- You enable **Options → Proxy Downloads**.
+- The source URL is not directly linkable (for example, a debrid-resolved link or a service that requires session cookies).
+- The hosting service enforces a single simultaneous connection — DPI holds that connection and caches the data for the console.
+
+**Best for:** PS4s with no direct internet access, links behind authentication, or hosting services that throttle or block console user agents.
+
+<Steps>
+  <Step title="Enable proxy downloads">
+    Open **Options → Proxy Downloads** and enable the toggle.
+  </Step>
+  <Step title="Paste the PKG URL">
+    Enter the `.pkg` URL into the **PKG URL** field.
+  </Step>
+  <Step title="Click Load, then Install">
+    DPI loads metadata and sends the console a local proxy URL (`http://PC_IP:9898/proxy/...`). The console downloads through DPI.
+  </Step>
+</Steps>
+
+<Warning>
+  The progress bar shown on the PS4 may not be accurate in proxy mode. Monitor overall progress on the DPI status area instead.
+</Warning>
+
+---
+
+## Segmented download mode
+
+Segmented mode downloads the PKG to your PC's disk in parallel threads and then serves the fully cached file to the console. Because DPI uses multiple concurrent connections to the source, this typically achieves the highest possible throughput.
+
+**When DPI uses this mode:** You enable **Options → Segmented Downloads**. Internally DPI sets both `Source.Segmented` and `Source.Proxy` so the console always receives data from DPI's local cache server.
+
+**Best for:** Large PKG files, fast internet connections, and situations where the remote host supports parallel range requests (most CDN-hosted files).
+
+**Requirement:** Free disk space equal to or greater than the PKG file size.
+
+<Steps>
+  <Step title="Check available disk space">
+    Verify you have free space at least equal to the PKG size before starting.
+  </Step>
+  <Step title="Enable segmented downloads">
+    Open **Options → Segmented Downloads** and enable the toggle.
+  </Step>
+  <Step title="Paste the PKG URL">
+    Enter the `.pkg` URL into the **PKG URL** field.
+  </Step>
+  <Step title="Click Load">
+    DPI begins parallel downloading in the background and shows a preload progress indicator.
+  </Step>
+  <Step title="Click Install">
+    Once the required preload amount is cached, DPI sends the console a local cache URL (`http://PC_IP:9898/cache/...`). The console downloads from that cache at full LAN speed.
+  </Step>
+</Steps>
+
+<Warning>
+  In segmented mode the PS4 cannot accurately track download progress. Use your PC's Task Manager or network monitor to observe real throughput. The progress shown on the console will appear to stall or jump.
+</Warning>
+
+<Note>
+  Segmented mode is not available in CLI mode yet.
+</Note>
+
+---
+
+## Compressed file mode (RAR/7z)
+
+When the source URL points to a `.rar` or `.7z` archive, DPI downloads the archive, decompresses it, and streams the resulting PKG to your console — all in parallel. You do not need to extract the archive yourself.
+
+**When DPI uses this mode:** DPI detects a compressed archive URL and sets `Source.RAR` or `Source.SevenZip`. DPI strips proxy and segmented flags for this mode because it manages its own streaming pipeline.
+
+**Best for:** PKG files distributed as compressed archives to reduce hosting bandwidth or bundle multiple files together.
+
+**Requirement:** Free disk space equal to the final uncompressed PKG size for the temporary cache.
+
+<Steps>
+  <Step title="Check available disk space">
+    Ensure you have free space equal to the uncompressed PKG size.
+  </Step>
+  <Step title="Paste the compressed archive URL">
+    Enter the direct URL to the `.rar` or `.7z` file into the **PKG URL** field.
+  </Step>
+  <Step title="Click Load">
+    DPI scans the archive's file listing. Multi-volume archives take longer to scan because DPI must validate each volume.
+  </Step>
+  <Step title="Select the PKG (if needed)">
+    If the archive contains more than one file, a file list appears. Select the `.pkg` you want to install.
+  </Step>
+  <Step title="Click Install">
+    DPI begins decompressing and streaming to the console in parallel. A preload progress indicator is shown while the required initial segment is extracted.
+  </Step>
+</Steps>
+
+<Note>
+  Compressed mode is always proxied — the console always downloads from DPI's local decompression server. Avoid running multiple compressed downloads simultaneously as they compete for disk I/O.
+</Note>
+
+<Warning>
+  Multi-volume archive downloads create a temporary PKG cache on disk. Do not delete temporary files while an installation is in progress.
+</Warning>
+
+---
+
+## Mode summary
+
+| Mode | Proxy through PC | Disk cache needed | PS4 progress accurate | CLI support |
+|---|---|---|---|---|
+| Direct URL | No | No | Yes | Yes |
+| Proxy | Yes | No | Approximate | Yes |
+| Segmented | Yes | Yes (full PKG) | No | No |
+| Compressed (RAR/7z) | Yes | Yes (full PKG) | No | No |

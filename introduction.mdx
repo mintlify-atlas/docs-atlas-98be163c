@@ -1,0 +1,91 @@
+---
+title: "DirectPackageInstaller: Send PS4/PS5 PKGs from any URL"
+description: "DirectPackageInstaller is a cross-platform tool that sends PS4/PS5 PKG files to your console from direct URLs, debrid services, and compressed archives."
+---
+
+DirectPackageInstaller (DPI) is a cross-platform desktop tool that lets you send PKG files directly to your PS4 or PS5 without manually copying files. You paste a URL — whether it's a plain direct link, a debrid-service link, a compressed archive, or a PSN update manifest — and DPI resolves it, optionally proxies the download through your PC over LAN, and pushes it to your console's package installer. It runs on Windows, Linux, macOS, and Android, and requires no configuration beyond knowing your console's IP address.
+
+## Installation methods
+
+DPI communicates with your PS4 or PS5 through one of three methods. You only need one of them active on your console when using DPI.
+
+- **Remote Package Installer** — A PS4 homebrew app that exposes an HTTP API on port 12800. DPI sends PKG download tasks directly to this API.
+- **GoldHEN Payload Server** — DPI delivers a payload to your console over ports 9090, 9021, or 9020. No separate homebrew app required beyond GoldHEN itself.
+- **etaHEN DPIv2 API** — Targeted at PS5 users running etaHEN. DPI sends packages via multipart POST to port 12800 using the DPIv2 protocol.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="PKG preview" icon="eye">
+    Load and inspect PKG metadata before sending anything to your console.
+  </Card>
+  <Card title="Automatic proxy" icon="network-wired">
+    DPI proxies downloads through your PC over LAN, significantly improving speeds for consoles with slow or no WAN access.
+  </Card>
+  <Card title="Compressed archive support" icon="file-zipper">
+    RAR and 7z archives are downloaded, extracted, and streamed to your console in parallel — saving time and disk space.
+  </Card>
+  <Card title="Segmented downloads" icon="gauge-high">
+    Download PKG files across parallel threads for maximum throughput before pushing to your console.
+  </Card>
+  <Card title="Debrid service integration" icon="link">
+    Built-in support for AllDebrid, RealDebrid, and DebridLink. Add your API key in settings and DPI resolves restricted links automatically.
+  </Card>
+  <Card title="PSN update manifests" icon="list">
+    Supports split PKGs from PSN update manifests so multi-part packages install correctly.
+  </Card>
+  <Card title="Resumable downloads" icon="rotate-right">
+    Uncompressed PKG downloads can be resumed if interrupted, avoiding full re-downloads.
+  </Card>
+  <Card title="NFS source support" icon="server">
+    Point DPI at an NFS server export and install PKGs directly from your NAS or home server.
+  </Card>
+  <Card title="JDownloader Click'n Load" icon="bolt">
+    Accepts links via JDownloader's Click'n Load protocol for one-click queue integration.
+  </Card>
+  <Card title="Command-line interface" icon="terminal">
+    An experimental CLI is available for scripting and automation on all platforms.
+  </Card>
+  <Card title="PS5 etaHEN support" icon="gamepad">
+    Full PS5 support via the etaHEN DPIv2 API alongside the existing PS4 Remote Package Installer workflow.
+  </Card>
+  <Card title="Cross-platform" icon="laptop">
+    Runs on Windows, Linux, macOS, and Android. macOS builds bundle the .NET runtime so no separate install is needed.
+  </Card>
+</CardGroup>
+
+## Supported platforms
+
+| Platform | Architectures | .NET 8 Runtime required |
+|----------|--------------|------------------------|
+| Windows  | ARM, ARM64, x64, x86 | Yes |
+| Linux    | ARM, ARM64, x64 | Yes |
+| macOS    | ARM64, x64 | No (self-contained) |
+| Android  | ARM, ARM64, x64, x86 | Yes |
+
+<Note>
+  DPI must run on a device that is on the **same local network** as your PS4 or PS5. The console communicates with DPI's local HTTP server, so network isolation (such as guest Wi-Fi) will prevent installation.
+</Note>
+
+## Supported file hosting services
+
+DPI works with a broad range of sources out of the box.
+
+- **Any direct link** — No authentication required. Paste and go.
+- **AllDebrid** — Requires an [API key](https://alldebrid.com/apikeys/).
+- **RealDebrid** — Requires an [API key](https://real-debrid.com/apitoken).
+- **DebridLink** — Requires an [API key](https://debrid-link.com/webapp/apikey).
+- **Google Drive** — Public and shared files supported.
+- **Mediafire** — Direct download resolution handled automatically.
+- **PixelDrain** — Supported without additional configuration.
+- **1Fichier** — Supported, but enforces a 60-minute cooldown between downloads.
+
+For the best download speeds, AllDebrid, RealDebrid, Google Drive, and Mediafire are recommended. 1Fichier is the slowest option.
+
+## Next steps
+
+Ready to get DPI running on your machine? Head to the installation guide for your platform.
+
+<Card title="Install DirectPackageInstaller" icon="download" href="/installation">
+  Download the right build for Windows, macOS, Linux, or Android and run DPI for the first time.
+</Card>

@@ -1,0 +1,95 @@
+---
+title: "Use the DirectPackageInstaller graphical interface"
+description: "Step-by-step guide to installing PS4/PS5 PKG files with the DirectPackageInstaller GUI — covers direct, proxy, segmented, compressed, and manifest modes."
+---
+
+The graphical interface is the primary way most users interact with DirectPackageInstaller. It gives you a point-and-click workflow for loading PKG sources, previewing package metadata, and pushing installations to your console — no command-line knowledge required. The interface is identical across Windows, macOS, Linux, and Android.
+
+## Prerequisites
+
+Before you start, make sure the following conditions are met:
+
+- Your PC (or device running DPI) and your PS4/PS5 are on the **same local network**.
+- Your console is running one of the supported payload servers:
+  - **Remote Package Installer** homebrew app
+  - **GoldHEN Payload Server**
+  - **etaHEN DPIv2** (PS5)
+
+<Note>
+  DPI cannot reach your console if it is on a guest Wi-Fi segment or a different subnet from your PC. Use a wired connection or the same Wi-Fi band if you encounter connection issues.
+</Note>
+
+## Direct download mode
+
+Use this mode when you have a plain URL that points directly to a `.pkg` file.
+
+<Steps>
+  <Step title="Start the console payload server">
+    Launch **Remote Package Installer** on your PS4 or PS5, or enable the **GoldHEN Payload Server** from the GoldHEN menu. For PS5, ensure **etaHEN** is running.
+  </Step>
+  <Step title="Open DirectPackageInstaller">
+    Launch the DPI application. On first run it will attempt to auto-detect your console's IP over LAN.
+  </Step>
+  <Step title="Paste the PKG URL">
+    Paste a direct `.pkg` URL into the **PKG URL** field at the top of the window.
+  </Step>
+  <Step title="Click Load">
+    Click **Load** and wait while DPI fetches PKG metadata. The package name, title ID, content ID, and type will appear once loading is complete.
+  </Step>
+  <Step title="Click Install">
+    Click **Install**. DPI will send the installation task to your console. A progress indicator appears on both your PC and console.
+  </Step>
+  <Step title="Done">
+    Once the console confirms receipt of the package, you can close DPI or shut down your PC. The console will finish the download independently when using direct mode.
+  </Step>
+</Steps>
+
+## Options menu
+
+The **Options** menu provides two settings that change how DPI handles downloads.
+
+**Proxy downloads** — When enabled, DPI routes the PS4's download through your PC rather than having the console fetch directly from the internet. This is required when your PS4 has no direct internet access, and can also improve speeds significantly because LAN throughput is typically much higher than WAN. Enable via **Options → Proxy Downloads**.
+
+**Segmented downloads** — DPI downloads the PKG in multiple parallel threads to your PC's disk and then serves it to the console. This is the fastest available mode. It requires free disk space equal to the PKG size, and progress shown on the PS4 screen will not be accurate — use your PC's Task Manager to monitor real network activity. Enable via **Options → Segmented Downloads**.
+
+<Warning>
+  In segmented mode the PS4 cannot track download progress accurately. Monitor actual throughput using your PC's network usage rather than the progress bar on the console.
+</Warning>
+
+## Compressed file mode (RAR/7z)
+
+DPI can download, extract, and stream compressed archives in parallel, so you do not need to decompress the archive yourself first.
+
+<Steps>
+  <Step title="Ensure free disk space">
+    You need free disk space equal to the final uncompressed PKG size. DPI creates a temporary cache during extraction.
+  </Step>
+  <Step title="Paste the compressed file URL">
+    Paste the direct URL to your `.rar` or `.7z` archive into the **PKG URL** field.
+  </Step>
+  <Step title="Click Load">
+    Click **Load**. DPI will scan the archive. Multi-volume archives may take additional time to scan — this is expected behaviour, not a hang.
+  </Step>
+  <Step title="Select the PKG (if needed)">
+    If the archive contains more than one PKG, a file list will appear. Select the one you want to install.
+  </Step>
+  <Step title="Click Install">
+    Click **Install**. Decompression, caching, and streaming to the console all happen in parallel.
+  </Step>
+</Steps>
+
+<Note>
+  Compressed file mode always runs through DPI's proxy. Avoid running multiple compressed-file installations simultaneously, as parallel decompressions compete for disk I/O.
+</Note>
+
+## PSN update manifest (split PKGs)
+
+For multi-part packages distributed via PSN update manifests, paste the JSON manifest URL into the **PKG URL** field and proceed as with direct download mode. DPI will merge the split parts and deliver them to your console correctly.
+
+## JDownloader Click'n Load
+
+DPI supports JDownloader's **Click'n Load** (CNL) protocol. When CNL is enabled in **Settings**, DPI listens for incoming CNL requests and automatically populates the URL field. You must enable this feature manually in the settings before it accepts CNL links.
+
+## Console IP auto-detection
+
+If DPI cannot determine your console's IP address automatically, open **Options** and enter the PS4/PS5 IP manually. Auto-detection works by broadcasting on the LAN, but it can fail if your network has multiple subnets or if the console's discovery packets are blocked by a firewall.

@@ -1,0 +1,81 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "DirectPackageInstaller",
+  "projectDescription": "A cross-platform tool to preview and send PS4/PS5 PKG files to your console using direct download links, debrid services, or compressed archives.",
+  "theme": "almond",
+  "primaryColor": "#76602e",
+  "lightColor": "#e7d19a",
+  "darkColor": "#282726",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "installation"]
+          },
+          {
+            "group": "Usage",
+            "pages": ["usage/gui-usage", "usage/cli-usage", "usage/download-modes", "usage/nfs-source"]
+          },
+          {
+            "group": "Configuration",
+            "pages": ["configuration/settings", "configuration/file-hosting", "configuration/debrid-services"]
+          },
+          {
+            "group": "Troubleshooting",
+            "pages": ["troubleshooting/faq", "troubleshooting/error-logs"]
+          }
+        ]
+      },
+      {
+        "tab": "Developer Guide",
+        "groups": [
+          {
+            "group": "Building",
+            "pages": ["developer/building", "developer/android-builds"]
+          },
+          {
+            "group": "Architecture",
+            "pages": ["developer/architecture", "developer/file-hosts", "developer/server-internals"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Send PKG files to PS4/PS5 via Remote Package Installer, GoldHEN Payload Server, or etaHEN DPIv2 API",
+    "Automatic proxy server to accelerate PS4 downloads over LAN",
+    "Support for RAR/7z compressed archives with parallel download and extraction",
+    "Segmented parallel download mode for maximum speed",
+    "Integration with debrid services: AllDebrid, RealDebrid, DebridLink",
+    "Support for Google Drive, Mediafire, PixelDrain, and 1Fichier",
+    "PSN update manifest (split PKG) support",
+    "NFS server as a PKG source",
+    "JDownloader Click'n Load support",
+    "Cross-platform: Windows, Linux, macOS, Android",
+    "Command Line Interface (CLI) mode",
+    "Auto LAN Cable Connection (Windows only)"
+  ],
+  "publicApiSurface": [
+    "CLI: DirectPackageInstaller.Desktop -Server <IP> -PS4 <IP> -Port <port> -DPIPort <port> [-Proxy] <URL>",
+    "CLI flag: -Server / -LAN / -ServerIP / -LANIP <PKG_SENDER_PC_IP>",
+    "CLI flag: -PS4 / -PS4IP <PS4_IP>",
+    "CLI flag: -Port / -Binloader <BIN_LOADER_PORT>",
+    "CLI flag: -DPIPort <PKG_INFO_PORT>",
+    "CLI flag: -Proxy (enable proxy mode)",
+    "CLI flag: -UI (launch graphical interface)",
+    "CLI flag: -help / -h / -? (show usage)",
+    "PS4Server HTTP routes: /proxy/, /cache/, /merge/, /split/, /file/, /json/, /unrar/, /un7z/",
+    "FileHostBase.Hosts[] — registered file host providers",
+    "FileHostBase.IsValidUrl(string URL) — detect supported file host",
+    "FileHostBase.GetDownloadInfo(string URL) — resolve direct download URL",
+    "Installer.PushPackage(...) — main package push entrypoint",
+    "Installer.PushRPI(string URL, Settings Config, bool Silent) — push via Remote Package Installer",
+    "Installer.PushEtaHen(string URL, Settings Config, bool Silent) — push via etaHEN API",
+    "PayloadService.SendPKGPayload(string PS4IP, string PCIP, string URL, bool Silent, bool AutoSplit)",
+    "PayloadService.TryConnectSocket(string IP, bool Retry) — connect to GoldHEN/MiraLoader payload port",
+    "Settings struct — all configuration fields (PSIP, PCIP, API keys, download options)"
+  ]
+}

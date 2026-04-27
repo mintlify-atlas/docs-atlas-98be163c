@@ -1,0 +1,74 @@
+---
+title: "Supported file hosting services in DirectPackageInstaller"
+description: "DirectPackageInstaller supports direct links, Google Drive, Mediafire, PixelDrain, 1Fichier, and debrid services. Learn which hosts work and their limitations."
+---
+
+DirectPackageInstaller supports multiple file hosting services through a plugin-based system. Each host is implemented as a class that extends `FileHostBase`, exposing a URL detection method (`IsValidUrl`) and a direct-link resolver (`GetDownloadInfo`). When you paste a URL, DPI iterates through its registered hosts in order, picks the first one whose `IsValidUrl` returns `true`, and uses it to resolve a downloadable link. If no host matches, DPI treats the URL as a raw HTTP/HTTPS link and downloads it directly.
+
+## Host resolution order
+
+DPI checks hosts in the following fixed order, defined in `FileHostBase.Hosts[]`:
+
+1. Mediafire
+2. Google Drive
+3. PixelDrain
+4. AllDebrid
+5. RealDebrid
+6. DebridLink
+7. 1Fichier
+
+Debrid services are skipped automatically if their corresponding `Use*` flag is `false` or their API key is absent.
+
+## Supported hosts
+
+<CardGroup cols={2}>
+  <Card title="Direct links" icon="link">
+    Any publicly accessible HTTP or HTTPS URL that does not require authentication is supported without any configuration. DPI streams the file directly to the PS4 or through its proxy.
+  </Card>
+  <Card title="AllDebrid" icon="bolt">
+    Requires a valid API key and `UseAllDebrid = true`. DPI calls the AllDebrid unlock API to resolve premium-host links to direct download URLs. Supports a wide range of third-party hosts via AllDebrid's regex-based host list.
+  </Card>
+  <Card title="RealDebrid" icon="bolt">
+    Requires a valid API token and `UseRealDebrid = true`. DPI posts the source URL to the RealDebrid unrestrict API and receives a direct link in return. Host support is determined by RealDebrid's own regex list.
+  </Card>
+  <Card title="DebridLink" icon="bolt">
+    Requires a valid API key and `UseDebridLink = true`. DPI submits the URL to the DebridLink downloader API and resolves it to a direct download URL.
+  </Card>
+  <Card title="Google Drive" icon="hard-drive">
+    No API key required. DPI parses the file ID from `drive.google.com` share links and constructs a direct export URL. For files that require a Google account, DPI will prompt you to provide browser cookies via the built-in cookie manager.
+  </Card>
+  <Card title="Mediafire" icon="file">
+    No API key required. DPI fetches the Mediafire page and extracts the direct download link from the page HTML. Supports both short links (`/?id`) and standard file links (`/file/`).
+  </Card>
+  <Card title="PixelDrain" icon="droplet">
+    No API key required. DPI extracts the file ID from `pixeldrain.com/u/` URLs and constructs a direct API download URL (`pixeldrain.com/api/file/{id}?download`).
+  </Card>
+  <Card title="1Fichier" icon="clock">
+    No API key required, but limited to **one download every 60 minutes** on free accounts. Also supports the following mirror domains: `afterupload.com`, `cjoint.net`, `desfichiers.com`, `megadl.fr`, `mesfichiers.org`, `piecejointe.net`, `pjointe.com`, `tenvoi.com`, and `dl4free.com`. Password-protected files are supported; append `?pass=yourpassword` to the URL or DPI will prompt you.
+  </Card>
+</CardGroup>
+
+## Limited hosts and cache mode
+
+Some file hosts restrict simultaneous connections or enforce cooldown periods between downloads. DPI identifies these hosts via the `Limited` property on each host class. When a limited host is selected, DPI displays a **"WARNING: Limited File Hosting"** message and switches to cache mode: it downloads the entire file to disk first, then serves it locally to the PS4. This avoids connection interruptions that would occur if the PS4 tried to maintain a persistent stream from a restricted host.
+
+<Warning>
+  Cache mode requires free disk space equal to the full size of the PKG being installed. Ensure you have enough space before starting a download from a limited host such as 1Fichier.
+</Warning>
+
+## Recommended hosts
+
+<Tip>
+  For the best download speeds and reliability, use AllDebrid or RealDebrid with a premium subscription. Google Drive and Mediafire are strong free alternatives. 1Fichier is functional but the 60-minute wait between downloads makes it the slowest option for large packages.
+</Tip>
+
+| Host | API key | Connection limit | Notes |
+|---|---|---|---|
+| AllDebrid | Required | None | Fastest; supports many third-party hosts |
+| RealDebrid | Required | None | Fastest; supports many third-party hosts |
+| DebridLink | Required | None | Good alternative to AllDebrid/RealDebrid |
+| Google Drive | None | None | Reliable for large files; may require cookies |
+| Mediafire | None | None | Fast and straightforward |
+| PixelDrain | None | None | Simple direct links |
+| Direct link | None | None | Works for any open HTTP/HTTPS URL |
+| 1Fichier | None | 1 per 60 min | Cache mode; slowest option |

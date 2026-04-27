@@ -1,0 +1,136 @@
+---
+title: "File host plugin system in DirectPackageInstaller"
+description: "How DirectPackageInstaller's file host plugin system works: the FileHostBase abstract class, host resolution order, and how to understand supported hosts."
+---
+
+DirectPackageInstaller resolves download URLs through a small plugin system built around the abstract base class `FileHostBase`. When a URL is submitted, DPI iterates the registered hosts in order and asks each one whether it recognises the URL. The first match calls `GetDownloadInfo` to exchange the sharing-page URL for a direct download URL, optional HTTP headers, cookies, and an optional proxy. This resolved information is then wrapped in a `FileHostStream` and passed to the rest of the download pipeline.
+
+## The `FileHostBase` abstract class
+
+Every file host plugin must implement the following contract (`FileHostBase.cs`):
+
+```csharp
+public abstract class FileHostBase
+{
+    public abstract string HostName { get; }
+    public abstract bool Limited { get; }
+
+    public abstract bool IsValidUrl(string URL);
+    public abstract DownloadInfo GetDownloadInfo(string URL);
+}
+```
+
+### Members
+
+<AccordionGroup>
+  <Accordion title="HostName">
+    A human-readable display name for the host. Used in log messages and UI labels (e.g., `"Mediafire"`, `"Google Drive"`).
+  </Accordion>
+  <Accordion title="Limited">
+    When `true`, the host only allows a single concurrent reader. DPI responds by downloading the entire file to a local disk cache (`Source.DiskCache`) before serving it to the console, ensuring only one HTTP connection is ever open to the host at a time.
+  </Accordion>
+  <Accordion title="IsValidUrl(string URL)">
+    Returns `true` if this plugin should handle the given URL. Implementations typically check the hostname (e.g., `url.Contains("mediafire.com")`). Called for every host in order until a match is found.
+  </Accordion>
+  <Accordion title="GetDownloadInfo(string URL)">
+    Resolves a sharing-page or indirect URL to a direct download URL. May perform HTTP requests (scraping, API calls) to obtain the final link. Returns a `DownloadInfo` struct. Throws if resolution fails.
+  </Accordion>
+</AccordionGroup>
+
+## The `DownloadInfo` struct
+
+`GetDownloadInfo` returns a `DownloadInfo` value:
+
+```csharp
+public struct DownloadInfo {
+    public string Url;
+    public List<(string Key, string Value)> Headers;
+    public Cookie[] Cookies;
+    public WebProxy Proxy;
+}
+```
+
+| Field | Type | Purpose |
+|---|---|---|
+| `Url` | `string` | The direct download URL |
+| `Headers` | `List<(string, string)>` | Additional HTTP request headers (e.g., `Referer`, `Authorization`) |
+| `Cookies` | `Cookie[]` | Cookies required for authenticated downloads |
+| `Proxy` | `WebProxy` | HTTP proxy to route the request through (nullable) |
+
+## Host resolution order
+
+`FileHostBase.Hosts` defines the lookup order. Hosts are tried from left to right; the first `IsValidUrl` match wins:
+
+```csharp
+public static FileHostBase[] Hosts => new FileHostBase[] {
+    new Mediafire(), new GoogleDrive(), new PixelDrain(),
+    new AllDebrid(), new RealDebrid(), new DebridLink(),
+    new OneFichier(),
+};
+```
+
+| Position | Host | API key required | Limited |
+|---|---|---|---|
+| 1 | Mediafire | No | No |
+| 2 | Google Drive | No | No |
+| 3 | PixelDrain | No | No |
+| 4 | AllDebrid | Yes | No |
+| 5 | RealDebrid | Yes | No |
+| 6 | DebridLink | Yes | No |
+| 7 | OneFichier | No | Yes (60-min cooldown) |
+
+<Note>
+  If no host matches, DPI treats the URL as a plain direct link and skips the
+  resolution step entirely. Any URL not matched by `IsValidUrl` on any host is
+  served as-is through the chosen download mode.
+</Note>
+
+## The `Limited` flag and disk cache
+
+When `Limited` is `true`, the host does not allow parallel or repeated connections. DPI sets `Source.DiskCache` on the input type, which causes `Installer.PushPackage` to:
+
+1. Create a `DownloaderTask` that downloads the full file sequentially.
+2. Wait until the PKG preload threshold (`CurrentPKG.PreloadLength`) is buffered.
+3. Rewrite the URL to `/cache/?b64=…` so the PS4 reads from the local cache.
+
+`Source.Segmented` and `Source.Proxy` are stripped from the flags when `Source.DiskCache` is present, since the single-connection constraint makes them incompatible.
+
+<Warning>
+  `OneFichier` enforces a 60-minute wait between downloads. If you trigger a
+  second download before the cooldown expires, `GetDownloadInfo` will fail.
+  Use a debrid service (AllDebrid, RealDebrid, DebridLink) as an intermediary
+  for 1Fichier links to avoid this limitation.
+</Warning>
+
+## `FileHostStream`
+
+`FileHostStream` wraps the resolved `DownloadInfo` and exposes the properties consumed by `PS4Server` and `Installer`:
+
+| Property | Type | Description |
+|---|---|---|
+| `DirectLink` | `bool` | `true` if the resolved URL can be fetched directly without additional headers |
+| `SingleConnection` | `bool` | Mirrors `Limited`; when `true`, PS4Server wraps the stream in a `ReadSeekableStream` to avoid parallel reads |
+| `Filename` | `string` | Filename hint extracted from the URL or `Content-Disposition` header |
+| `Url` | `string` | The resolved direct download URL |
+
+When `SingleConnection` is `true`, `PS4Server.Proxy` and `PS4Server.Split` wrap the raw `FileHostStream` in a `ReadSeekableStream` before passing it to `SendStream`, serialising all seek operations.
+
+## Helper methods on `FileHostBase`
+
+The base class provides several protected HTTP helpers that plugins can use in their `GetDownloadInfo` implementations:
+
+```csharp
+protected string DownloadString(string URL, Cookie[]? Cookies = null);
+protected WebHeaderCollection? HeadGet(string URL, Cookie[]? Cookies = null);
+protected string PostString(string URL, string ContentType, string Data, Cookie[]? Cookies = null);
+protected HttpResponseHeaders? HeadPost(string URL, string ContentType, string Data, Cookie[]? Cookies = null);
+protected (byte[] Data, WebHeaderCollection? Headers) DownloadRequest(string URL, Cookie[]? Cookies = null);
+```
+
+All helpers set a consistent `User-Agent` header (`UserAgent` constant, Chrome-like string with a `DPI/<version>` suffix) and forward cookies where provided.
+
+<Tip>
+  When implementing a new host plugin, use `DownloadString` or `HeadGet` to
+  scrape the sharing page and extract the direct link. Use `PostString` for
+  hosts that require a form submission to generate a temporary download token.
+</Tip>
